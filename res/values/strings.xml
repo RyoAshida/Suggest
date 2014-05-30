@@ -2,7 +2,7 @@
 <resources>
 
     <string name="app_name">Suggest</string>
-    <string name="suggest_button_label">Suggest</string>
+    <string name="clear_button_label">Clear</string>
     <string name="input_text_hint">Text</string>
     <string name="no_network_alert_title">No network connection</string>
     <string name="no_network_alert_ok">OK</string>

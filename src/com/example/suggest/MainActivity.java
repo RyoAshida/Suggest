@@ -12,6 +12,8 @@ import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -26,9 +28,11 @@ public class MainActivity extends Activity {
     private final static String TAG = "MainActivity";
 
     private EditText inputText;
-    private Button suggestButton;
+    private Button clearButton;
     private ListView resultList;
     private ArrayAdapter<String> resultAdapter;
+
+    private SuggestionsTask suggestionsTask = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,13 +44,30 @@ public class MainActivity extends Activity {
 
     private void setupUI() {
         inputText = (EditText) findViewById(R.id.input_text);
-        suggestButton = (Button) findViewById(R.id.suggest_button);
+        clearButton = (Button) findViewById(R.id.clear_button);
         resultList = (ListView) findViewById(R.id.result_list);
 
-        suggestButton.setOnClickListener(new OnClickListener() {
+        inputText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count,
+                    int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before,
+                    int count) {
+                updateQuery(inputText.getText().toString().trim());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+
+        clearButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                startQuery(inputText.getText().toString().trim());
+                inputText.setText("");
+                cancelQuery();
+                resultAdapter.clear();
             }
         });
 
@@ -64,18 +85,28 @@ public class MainActivity extends Activity {
         resultList.setAdapter(resultAdapter);
     }
 
-    private void startQuery(String text) {
+    private void cancelQuery() {
+        if (suggestionsTask != null
+                && suggestionsTask.getStatus() != SuggestionsTask.Status.FINISHED
+                && !suggestionsTask.isCancelled())
+            suggestionsTask.cancel(true);
+    }
+
+    private void updateQuery(String text) {
+        cancelQuery();
         resultAdapter.clear();
+        if (text.length() == 0)
+            return;
         ConnectivityManager connMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
         if (networkInfo != null && networkInfo.isConnected()) {
-            new SuggestionsTask(this) {
+            suggestionsTask = new SuggestionsTask(this) {
                 @Override
                 public void onPostExecute(List<String> result) {
-                    resultAdapter.clear();
                     resultAdapter.addAll(result);
                 }
-            }.execute(text);
+            };
+            suggestionsTask.execute(text);
         }
         else {
             new AlertDialog.Builder(this)
